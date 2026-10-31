@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>לוח אירועי היישוב</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Heebo', system-ui, sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i data-lucide="calendar-days" class="w-6 h-6 text-indigo-600"></i>
+        <h1 class="text-lg sm:text-xl font-extrabold">לוח אירועי היישוב</h1>
+      </div>
+      <button id="adminBtn" class="flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition px-2 py-1 rounded-lg hover:bg-slate-100">
+        <i data-lucide="lock" class="w-4 h-4"></i>
+        <span>אזור מנהל</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-4 space-y-4">
+
+    <!-- Admin panel -->
+    <section id="adminPanel" class="hidden bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="font-bold text-indigo-900 flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-5 h-5"></i> אזור מנהל – הפקת הודעות לוואטסאפ
+        </h2>
+        <button id="adminLogout" class="text-xs text-indigo-700 hover:underline">יציאה</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <label class="block">
+          <span class="text-xs font-medium text-slate-600">קהל יעד</span>
+          <select id="adminAge" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"></select>
+        </label>
+        <label class="block">
+          <span class="text-xs font-medium text-slate-600">קהילה מארגנת</span>
+          <select id="adminCommunity" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"></select>
+        </label>
+        <div class="flex items-end">
+          <button id="genBtn" class="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl px-4 py-2 text-sm transition">
+            <i data-lucide="message-circle" class="w-4 h-4"></i> הפקת סיכום שבועי לוואטסאפ
+          </button>
+        </div>
+      </div>
+      <div id="outputWrap" class="hidden space-y-2">
+        <textarea id="outputText" rows="12" class="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-relaxed focus:ring-2 focus:ring-indigo-400 outline-none"></textarea>
+        <button id="copyBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl px-4 py-2 text-sm transition">
+          <i data-lucide="copy" class="w-4 h-4"></i> <span id="copyLabel">העתק טקסט</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <section class="bg-white border border-slate-200 rounded-2xl p-3 space-y-3">
+      <div>
+        <div class="text-xs font-bold text-slate-500 mb-1.5">קהל יעד</div>
+        <div id="ageFilters" class="flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+      </div>
+      <div>
+        <div class="text-xs font-bold text-slate-500 mb-1.5">קהילה מארגנת</div>
+        <div id="communityFilters" class="flex gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+      </div>
+    </section>
+
+    <!-- Calendar -->
+    <section class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+        <button id="prevMonth" class="p-2 rounded-full hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed" aria-label="חודש קודם">
+          <i data-lucide="chevron-right" class="w-5 h-5"></i>
+        </button>
+        <h2 id="monthTitle" class="text-lg font-extrabold"></h2>
+        <button id="nextMonth" class="p-2 rounded-full hover:bg-slate-100" aria-label="חודש הבא">
+          <i data-lucide="chevron-left" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="grid grid-cols-7 text-center text-xs font-bold text-slate-500 bg-slate-50 border-b border-slate-100">
+        <div class="py-2">א׳</div><div class="py-2">ב׳</div><div class="py-2">ג׳</div>
+        <div class="py-2">ד׳</div><div class="py-2">ה׳</div><div class="py-2">ו׳</div><div class="py-2">ש׳</div>
+      </div>
+      <div id="calendarGrid" class="grid grid-cols-7"></div>
+    </section>
+
+    <!-- Day list -->
+    <section class="space-y-3 pb-10">
+      <h3 id="dayTitle" class="font-extrabold text-lg"></h3>
+      <div id="dayList" class="space-y-3"></div>
+    </section>
+  </main>
+
+  <!-- Password modal -->
+  <div id="pwModal" class="hidden fixed inset-0 z-30 bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-xs space-y-3 shadow-xl">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold">כניסת מנהל</h3>
+        <button id="pwClose" class="p-1 rounded-full hover:bg-slate-100"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input id="pwInput" type="password" inputmode="numeric" placeholder="סיסמה" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-center tracking-widest focus:ring-2 focus:ring-indigo-400 outline-none">
+      <div id="pwError" class="hidden text-sm text-red-600 text-center">סיסמה שגויה</div>
+      <button id="pwSubmit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl py-2 transition">כניסה</button>
+    </div>
+  </div>
+
+<script>
+  const ADMIN_PASSWORD = '1234';
+
+  const AGE_FILTERS = [
+    { value: 'הכל', label: 'הכל', emoji: '' },
+    { value: 'משפחות', label: 'משפחות', emoji: '👨‍👩‍👧‍👦' },
+    { value: 'נוער', label: 'נוער', emoji: '🧑‍🎤' },
+    { value: 'מבוגרים', label: 'מבוגרים', emoji: '☕' }
+  ];
+  const AGE_EMOJI = { 'משפחות': '👨‍👩‍👧‍👦', 'נוער': '🧑‍🎤', 'מבוגרים': '☕' };
+  const AGE_STYLE = {
+    'משפחות':  { chip: 'bg-amber-100 text-amber-800',     dot: 'bg-amber-500',   tag: 'bg-amber-100 text-amber-800' },
+    'נוער':    { chip: 'bg-fuchsia-100 text-fuchsia-800', dot: 'bg-fuchsia-500', tag: 'bg-fuchsia-100 text-fuchsia-800' },
+    'מבוגרים': { chip: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-500', tag: 'bg-emerald-100 text-emerald-800' }
+  };
+  const DEFAULT_STYLE = { chip: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400', tag: 'bg-slate-100 text-slate-700' };
+
+  const ALL_COMMUNITIES = 'כל הקהילות';
+
+  const today = new Date();
+  const state = {
+    events: [],
+    age: 'הכל',
+    community: ALL_COMMUNITIES,
+    viewYear: today.getFullYear(),
+    viewMonth: today.getMonth(),
+    selected: toKey(today),
+    isAdmin: false
+  };
+  const minYear = today.getFullYear(), minMonth = today.getMonth();
+
+  /* ---------- Helpers ---------- */
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function toKey(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parseKey(k) { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); }
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function eventStart(e) {
+    const [h, m] = (e.start_time || '00:00').split(':').map(Number);
+    const d = parseKey(e.date); d.setHours(h || 0, m || 0, 0, 0); return d;
+  }
+  function eventEnd(e) {
+    const d = parseKey(e.date);
+    if (e.end_time) {
+      const [h, m] = e.end_time.split(':').map(Number);
+      d.setHours(h || 0, m || 0, 0, 0);
+      return d;
+    }
+    const s = eventStart(e); s.setHours(s.getHours() + 2); return s;
+  }
+  function timeRange(e) {
+    return e.end_time ? `${e.start_time}–${e.end_time}` : (e.start_time || '');
+  }
+  function matches(e) {
+    return (state.age === 'הכל' || e.target_age === state.age) &&
+           (state.community === ALL_COMMUNITIES || e.community === state.community);
+  }
+  function styleOf(e) { return AGE_STYLE[e.target_age] || DEFAULT_STYLE; }
+  function icons() { if (window.lucide) lucide.createIcons(); }
+
+  /* ---------- Load ---------- */
+  async function loadEvents() {
+    try {
+      const res = await fetch('events.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const now = new Date();
+      state.events = (Array.isArray(data) ? data : [])
+        .filter(e => e && e.date && e.title)
+        .filter(e => eventEnd(e) >= now) // סינון אירועי עבר שהסתיימו
+        .sort((a, b) => eventStart(a) - eventStart(b));
+    } catch (err) {
+      console.error(err);
+      document.getElementById('dayList').innerHTML =
+        '<div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">לא ניתן לטעון את קובץ האירועים (events.json). ודאו שהקובץ נמצא באותה תיקייה ושהאתר רץ משרת (ולא נפתח ישירות מהקובץ).</div>';
+      state.events = [];
+    }
+    renderAll();
+  }
+
+  function communities() {
+    return [...new Set(state.events.map(e => e.community).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he'));
+  }
+
+  /* ---------- Render ---------- */
+  function btnClass(active) {
+    return 'whitespace-nowrap shrink-0 rounded-full px-4 py-1.5 text-sm font-medium border transition ' +
+      (active ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100');
+  }
+
+  function renderFilters() {
+    document.getElementById('ageFilters').innerHTML = AGE_FILTERS.map(f =>
+      `<button data-age="${esc(f.value)}" class="${btnClass(state.age === f.value)}">${esc(f.label)}${f.emoji ? ' ' + f.emoji : ''}</button>`
+    ).join('');
+
+    const comms = [ALL_COMMUNITIES, ...communities()];
+    if (!comms.includes(state.community)) state.community = ALL_COMMUNITIES;
+    document.getElementById('communityFilters').innerHTML = comms.map(c =>
+      `<button data-community="${esc(c)}" class="${btnClass(state.community === c)}">${esc(c)}</button>`
+    ).join('');
+  }
+
+  function renderCalendar() {
+    const y = state.viewYear, m = state.viewMonth;
+    const first = new Date(y, m, 1);
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    document.getElementById('monthTitle').textContent =
+      first.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+    document.getElementById('prevMonth').disabled = (y === minYear && m === minMonth);
+
+    const byDay = {};
+    state.events.filter(matches).forEach(e => { (byDay[e.date] ||= []).push(e); });
+
+    const todayKey = toKey(new Date());
+    let html = '';
+    for (let i = 0; i < first.getDay(); i++) {
+      html += '<div class="min-h-[56px] sm:min-h-[96px] border-t border-s border-slate-100 bg-slate-50/60"></div>';
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = y + '-' + pad(m + 1) + '-' + pad(d);
+      const list = byDay[key] || [];
+      const isToday = key === todayKey;
+      const isSel = key === state.selected;
+      const isPastDay = key < todayKey;
+
+      const chips = list.slice(0, 2).map(e =>
+        `<div class="hidden sm:block truncate rounded px-1.5 py-0.5 text-[11px] font-medium ${styleOf(e).chip}">${esc(e.start_time)} ${esc(e.title)}</div>`
+      ).join('');
+      const more = list.length > 2 ? `<div class="hidden sm:block text-[11px] text-slate-500 px-1">+${list.length - 2} נוספים</div>` : '';
+      const dots = list.length
+        ? `<div class="sm:hidden flex flex-wrap gap-0.5 justify-center">${list.slice(0, 4).map(e => `<span class="w-1.5 h-1.5 rounded-full ${styleOf(e).dot}"></span>`).join('')}</div>`
+        : '';
+
+      html += `<button data-day="${key}" class="min-h-[56px] sm:min-h-[96px] p-1 border-t border-s border-slate-100 flex flex-col gap-1 items-stretch text-start hover:bg-slate-50 transition ${isSel ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-400' : ''} ${isPastDay ? 'opacity-40' : ''}">
+        <span class="self-center sm:self-start text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-indigo-600 text-white' : ''}">${d}</span>
+        ${chips}${more}${dots}
+      </button>`;
+    }
+    document.getElementById('calendarGrid').innerHTML = html;
+  }
+
+  function renderDayList() {
+    const d = parseKey(state.selected);
+    document.getElementById('dayTitle').textContent =
+      d.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+    const list = state.events.filter(e => e.date === state.selected && matches(e));
+    const box = document.getElementById('dayList');
+    if (!list.length) {
+      box.innerHTML = '<div class="bg-white border border-dashed border-slate-300 rounded-2xl p-6 text-center text-slate-500 text-sm">אין אירועים ביום זה שעונים על הסינון שנבחר 🌿</div>';
+      return;
+    }
+    box.innerHTML = list.map(e => `
+      <article class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <h4 class="font-extrabold text-base">${esc(e.title)}</h4>
+          <span class="shrink-0 text-xs font-bold rounded-full px-2.5 py-1 ${styleOf(e).tag}">${esc(e.target_age || '')} ${AGE_EMOJI[e.target_age] || ''}</span>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
+          <span class="flex items-center gap-1"><i data-lucide="clock" class="w-4 h-4"></i>${esc(timeRange(e))}</span>
+          ${e.location ? `<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-4 h-4"></i>${esc(e.location)}</span>` : ''}
+        </div>
+        ${e.description ? `<p class="mt-2 text-sm text-slate-700">${esc(e.description)}</p>` : ''}
+        ${e.community ? `<div class="mt-3 inline-block text-xs font-medium bg-indigo-50 text-indigo-700 rounded-full px-2.5 py-1">${esc(e.community)}</div>` : ''}
+      </article>`).join('');
+  }
+
+  function renderAdminSelects() {
+    const ageSel = document.getElementById('adminAge');
+    const comSel = document.getElementById('adminCommunity');
+    const prevAge = ageSel.value, prevCom = comSel.value;
+    ageSel.innerHTML = ['הכל', 'משפחות', 'נוער', 'מבוגרים']
+      .map(v => `<option value="${v}">${v === 'הכל' ? 'כל קהלי היעד' : v}</option>`).join('');
+    comSel.innerHTML = [ALL_COMMUNITIES, ...communities()]
+      .map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if (prevAge) ageSel.value = prevAge;
+    if (prevCom && [...comSel.options].some(o => o.value === prevCom)) comSel.value = prevCom;
+  }
+
+  function renderAll() {
+    renderFilters();
+    renderCalendar();
+    renderDayList();
+    renderAdminSelects();
+    icons();
+  }
+
+  /* ---------- Events ---------- */
+  document.getElementById('ageFilters').addEventListener('click', e => {
+    const b = e.target.closest('[data-age]'); if (!b) return;
+    state.age = b.dataset.age; renderFilters(); renderCalendar(); renderDayList(); icons();
+  });
+  document.getElementById('communityFilters').addEventListener('click', e => {
+    const b = e.target.closest('[data-community]'); if (!b) return;
+    state.community = b.dataset.community; renderFilters(); renderCalendar(); renderDayList(); icons();
+  });
+  document.getElementById('calendarGrid').addEventListener('click', e => {
+    const b = e.target.closest('[data-day]'); if (!b) return;
+    state.selected = b.dataset.day; renderCalendar(); renderDayList(); icons();
+    document.getElementById('dayTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.getElementById('prevMonth').addEventListener('click', () => {
+    if (state.viewYear === minYear && state.viewMonth === minMonth) return;
+    state.viewMonth--; if (state.viewMonth < 0) { state.viewMonth = 11; state.viewYear--; }
+    renderCalendar(); icons();
+  });
+  document.getElementById('nextMonth').addEventListener('click', () => {
+    state.viewMonth++; if (state.viewMonth > 11) { state.viewMonth = 0; state.viewYear++; }
+    renderCalendar(); icons();
+  });
+
+  /* ---------- Admin ---------- */
+  const pwModal = document.getElementById('pwModal');
+  const pwInput = document.getElementById('pwInput');
+  function openPw() { pwModal.classList.remove('hidden'); document.getElementById('pwError').classList.add('hidden'); pwInput.value = ''; pwInput.focus(); }
+  function closePw() { pwModal.classList.add('hidden'); }
+  function tryLogin() {
+    if (pwInput.value === ADMIN_PASSWORD) {
+      state.isAdmin = true; closePw();
+      document.getElementById('adminPanel').classList.remove('hidden');
+      icons();
+    } else {
+      document.getElementById('pwError').classList.remove('hidden');
+    }
+  }
+  document.getElementById('adminBtn').addEventListener('click', () => {
+    if (state.isAdmin) document.getElementById('adminPanel').scrollIntoView({ behavior: 'smooth' });
+    else openPw();
+  });
+  document.getElementById('pwClose').addEventListener('click', closePw);
+  document.getElementById('pwSubmit').addEventListener('click', tryLogin);
+  pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+  document.getElementById('adminLogout').addEventListener('click', () => {
+    state.isAdmin = false;
+    document.getElementById('adminPanel').classList.add('hidden');
+    document.getElementById('outputWrap').classList.add('hidden');
+  });
+
+  function buildSummary() {
+    const age = document.getElementById('adminAge').value;
+    const com = document.getElementById('adminCommunity').value;
+    const now = new Date();
+    const startDay = parseKey(toKey(now));
+    const endDay = new Date(startDay); endDay.setDate(endDay.getDate() + 7); // 7 ימים קדימה (כולל היום)
+
+    const list = state.events.filter(e => {
+      const d = parseKey(e.date);
+      return d >= startDay && d < endDay &&
+        (age === 'הכל' || e.target_age === age) &&
+        (com === ALL_COMMUNITIES || e.community === com);
+    });
+
+    const parts = [];
+    if (age !== 'הכל') parts.push(`${AGE_EMOJI[age] || ''} ${age}`.trim());
+    if (com !== ALL_COMMUNITIES) parts.push(`🏛️ ${com}`);
+    let title = '📅 *אירועי השבוע הקרוב*';
+    if (parts.length) title += '\n' + parts.join(' | ');
+
+    if (!list.length) {
+      return title + '\n\nאין אירועים מתוכננים בשבוע הקרוב בהתאם לבחירה 🌿';
+    }
+
+    const groups = {};
+    list.forEach(e => { (groups[e.date] ||= []).push(e); });
+    let text = title + '\n';
+    Object.keys(groups).sort().forEach(k => {
+      const label = parseKey(k).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+      text += `\n🗓️ *${label}*\n`;
+      groups[k].forEach(e => {
+        text += `${AGE_EMOJI[e.target_age] || '🎉'} *${e.title}*\n`;
+        text += `   🕒 ${timeRange(e)}`;
+        if (e.location) text += `  |  📍 ${e.location}`;
+        text += '\n';
+        if (e.community && com === ALL_COMMUNITIES) text += `   🏛️ ${e.community}\n`;
+        if (e.description) text += `   ℹ️ ${e.description}\n`;
+      });
+    });
+    text += '\nנשמח לראותכם! 🎉';
+    return text;
+  }
+
+  document.getElementById('genBtn').addEventListener('click', () => {
+    document.getElementById('outputText').value = buildSummary();
+    document.getElementById('outputWrap').classList.remove('hidden');
+    document.getElementById('copyLabel').textContent = 'העתק טקסט';
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    const ta = document.getElementById('outputText');
+    try {
+      await navigator.clipboard.writeText(ta.value);
+    } catch (e) {
+      ta.select(); document.execCommand('copy');
+    }
+    const lbl = document.getElementById('copyLabel');
+    lbl.textContent = 'הועתק ✓';
+    setTimeout(() => lbl.textContent = 'העתק טקסט', 2000);
+  });
+
+  /* ---------- Init ---------- */
+  icons();
+  loadEvents();
+</script>
+</body>
+</html>
