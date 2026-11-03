@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <link rel="apple-touch-icon" href="./icon.png">
-  <link rel="icon" type="image/png" href="./icon.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ALL EVENTS מזכרת בתיה</title>
+  <link rel="apple-touch-icon" href="./icon.png">
+  <link rel="icon" type="image/png" href="./icon.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,7 +22,7 @@
   <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
     <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <i data-lucide="calendar-days" class="w-6 h-6 text-indigo-600"></i>
+        <img src="./icon.png" alt="לוגו" class="h-8 w-8 rounded-full object-cover shadow-sm ring-1 ring-slate-200">
         <h1 class="text-lg sm:text-xl font-extrabold">ALL EVENTS מזכרת בתיה</h1>
       </div>
       <button id="adminBtn" class="flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600 transition px-2 py-1 rounded-lg hover:bg-slate-100">
@@ -133,11 +133,31 @@
 
   const ALL_COMMUNITIES = 'כל הקהילות';
 
+  /* ---------- שמירת סינונים (LocalStorage) ---------- */
+  const STORE_KEY = 'allEventsFilters_v1';
+  function loadFilters() {
+    try {
+      const o = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+      return {
+        ages: new Set((o.ages || []).filter(a => ['משפחות', 'נוער', 'מבוגרים'].includes(a))),
+        communities: new Set(Array.isArray(o.communities) ? o.communities : [])
+      };
+    } catch (e) { return { ages: new Set(), communities: new Set() }; }
+  }
+  function saveFilters() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        ages: [...state.ages], communities: [...state.communities]
+      }));
+    } catch (e) { /* אחסון חסום – מתעלמים */ }
+  }
+
   const today = new Date();
+  const saved = loadFilters();
   const state = {
     events: [],
-    ages: new Set(),        // ריק = הכל
-    communities: new Set(), // ריק = כל הקהילות
+    ages: saved.ages,               // ריק = הכל
+    communities: saved.communities, // ריק = כל הקהילות
     viewYear: today.getFullYear(),
     viewMonth: today.getMonth(),
     selected: toKey(today),
@@ -260,6 +280,21 @@
     document.getElementById('calendarGrid').innerHTML = html;
   }
 
+  function safeUrl(u) {
+    try {
+      const url = new URL(String(u || '').trim(), location.href);
+      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
+    } catch (e) { return ''; }
+  }
+  function registerHtml(e) {
+    const href = e.link ? safeUrl(e.link) : '';
+    if (!href) {
+      return '<span class="text-xs text-slate-500 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-4 h-4"></i>אין צורך ברישום מראש</span>';
+    }
+    return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl px-4 py-2 shadow-sm transition">
+      <span>להרשמה</span><i data-lucide="external-link" class="w-4 h-4"></i></a>`;
+  }
+
   function renderDayList() {
     const d = parseKey(state.selected);
     document.getElementById('dayTitle').textContent =
@@ -281,7 +316,10 @@
           ${e.location ? `<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-4 h-4"></i>${esc(e.location)}</span>` : ''}
         </div>
         ${e.description ? `<p class="mt-2 text-sm text-slate-700">${esc(e.description)}</p>` : ''}
-        ${e.community ? `<div class="mt-3 inline-block text-xs font-medium bg-indigo-50 text-indigo-700 rounded-full px-2.5 py-1">${esc(e.community)}</div>` : ''}
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+          ${e.community ? `<span class="text-xs font-medium bg-indigo-50 text-indigo-700 rounded-full px-2.5 py-1">${esc(e.community)}</span>` : '<span></span>'}
+          ${registerHtml(e)}
+        </div>
       </article>`).join('');
   }
 
@@ -312,6 +350,7 @@
     if (v === 'הכל') state.ages.clear();
     else if (state.ages.has(v)) state.ages.delete(v);
     else state.ages.add(v);
+    saveFilters();
     renderFilters(); renderCalendar(); renderDayList(); icons();
   });
   document.getElementById('communityFilters').addEventListener('click', e => {
@@ -320,6 +359,7 @@
     if (v === ALL_COMMUNITIES) state.communities.clear();
     else if (state.communities.has(v)) state.communities.delete(v);
     else state.communities.add(v);
+    saveFilters();
     renderFilters(); renderCalendar(); renderDayList(); icons();
   });
   document.getElementById('calendarGrid').addEventListener('click', e => {
