@@ -5,7 +5,7 @@
   <link rel="icon" type="image/png" href="./icon.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ALL EVENTS MB</title>
+  <title>ALL EVENTS מזכרת בתיה</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,21 +42,20 @@
         </h2>
         <button id="adminLogout" class="text-xs text-indigo-700 hover:underline">יציאה</button>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <label class="block">
-          <span class="text-xs font-medium text-slate-600">קהל יעד</span>
-          <select id="adminAge" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"></select>
-        </label>
-        <label class="block">
-          <span class="text-xs font-medium text-slate-600">קהילה מארגנת</span>
-          <select id="adminCommunity" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"></select>
-        </label>
-        <div class="flex items-end">
-          <button id="genBtn" class="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl px-4 py-2 text-sm transition">
-            <i data-lucide="message-circle" class="w-4 h-4"></i> הפקת סיכום שבועי לוואטסאפ
-          </button>
+      <p class="text-xs text-slate-600">אפשר לסמן כמה אפשרויות בכל קבוצה. ללא סימון = הכל.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <div class="text-xs font-bold text-slate-600 mb-1.5">קהלי יעד</div>
+          <div id="adminAgeChecks" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div>
+          <div class="text-xs font-bold text-slate-600 mb-1.5">קהילות מארגנות</div>
+          <div id="adminCommunityChecks" class="flex flex-wrap gap-2"></div>
         </div>
       </div>
+      <button id="genBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl px-5 py-2 text-sm transition">
+        <i data-lucide="message-circle" class="w-4 h-4"></i> הפקת סיכום שבועי לוואטסאפ
+      </button>
       <div id="outputWrap" class="hidden space-y-2">
         <textarea id="outputText" rows="12" class="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm leading-relaxed focus:ring-2 focus:ring-indigo-400 outline-none"></textarea>
         <button id="copyBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl px-4 py-2 text-sm transition">
@@ -137,8 +136,8 @@
   const today = new Date();
   const state = {
     events: [],
-    age: 'הכל',
-    community: ALL_COMMUNITIES,
+    ages: new Set(),        // ריק = הכל
+    communities: new Set(), // ריק = כל הקהילות
     viewYear: today.getFullYear(),
     viewMonth: today.getMonth(),
     selected: toKey(today),
@@ -170,8 +169,9 @@
     return e.end_time ? `${e.start_time}–${e.end_time}` : (e.start_time || '');
   }
   function matches(e) {
-    return (state.age === 'הכל' || e.target_age === state.age) &&
-           (state.community === ALL_COMMUNITIES || e.community === state.community);
+    // OR בתוך כל שורה, AND בין השורות
+    return (state.ages.size === 0 || state.ages.has(e.target_age)) &&
+           (state.communities.size === 0 || state.communities.has(e.community));
   }
   function styleOf(e) { return AGE_STYLE[e.target_age] || DEFAULT_STYLE; }
   function icons() { if (window.lucide) lucide.createIcons(); }
@@ -208,15 +208,17 @@
   }
 
   function renderFilters() {
-    document.getElementById('ageFilters').innerHTML = AGE_FILTERS.map(f =>
-      `<button data-age="${esc(f.value)}" class="${btnClass(state.age === f.value)}">${esc(f.label)}${f.emoji ? ' ' + f.emoji : ''}</button>`
-    ).join('');
+    document.getElementById('ageFilters').innerHTML = AGE_FILTERS.map(f => {
+      const active = f.value === 'הכל' ? state.ages.size === 0 : state.ages.has(f.value);
+      return `<button data-age="${esc(f.value)}" aria-pressed="${active}" class="${btnClass(active)}">${esc(f.label)}${f.emoji ? ' ' + f.emoji : ''}</button>`;
+    }).join('');
 
-    const comms = [ALL_COMMUNITIES, ...communities()];
-    if (!comms.includes(state.community)) state.community = ALL_COMMUNITIES;
-    document.getElementById('communityFilters').innerHTML = comms.map(c =>
-      `<button data-community="${esc(c)}" class="${btnClass(state.community === c)}">${esc(c)}</button>`
-    ).join('');
+    const existing = communities();
+    state.communities = new Set([...state.communities].filter(c => existing.includes(c)));
+    document.getElementById('communityFilters').innerHTML = [ALL_COMMUNITIES, ...existing].map(c => {
+      const active = c === ALL_COMMUNITIES ? state.communities.size === 0 : state.communities.has(c);
+      return `<button data-community="${esc(c)}" aria-pressed="${active}" class="${btnClass(active)}">${esc(c)}</button>`;
+    }).join('');
   }
 
   function renderCalendar() {
@@ -284,15 +286,15 @@
   }
 
   function renderAdminSelects() {
-    const ageSel = document.getElementById('adminAge');
-    const comSel = document.getElementById('adminCommunity');
-    const prevAge = ageSel.value, prevCom = comSel.value;
-    ageSel.innerHTML = ['הכל', 'משפחות', 'נוער', 'מבוגרים']
-      .map(v => `<option value="${v}">${v === 'הכל' ? 'כל קהלי היעד' : v}</option>`).join('');
-    comSel.innerHTML = [ALL_COMMUNITIES, ...communities()]
-      .map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-    if (prevAge) ageSel.value = prevAge;
-    if (prevCom && [...comSel.options].some(o => o.value === prevCom)) comSel.value = prevCom;
+    const pill = (cls, value, label) =>
+      `<label class="cursor-pointer select-none">
+        <input type="checkbox" class="peer sr-only ${cls}" value="${esc(value)}">
+        <span class="inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium bg-white text-slate-700 border-slate-300 hover:bg-slate-100 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400 transition">${esc(label)}</span>
+      </label>`;
+    document.getElementById('adminAgeChecks').innerHTML =
+      ['משפחות', 'נוער', 'מבוגרים'].map(v => pill('adm-age', v, `${v} ${AGE_EMOJI[v]}`)).join('');
+    document.getElementById('adminCommunityChecks').innerHTML =
+      communities().map(v => pill('adm-com', v, v)).join('');
   }
 
   function renderAll() {
@@ -306,11 +308,19 @@
   /* ---------- Events ---------- */
   document.getElementById('ageFilters').addEventListener('click', e => {
     const b = e.target.closest('[data-age]'); if (!b) return;
-    state.age = b.dataset.age; renderFilters(); renderCalendar(); renderDayList(); icons();
+    const v = b.dataset.age;
+    if (v === 'הכל') state.ages.clear();
+    else if (state.ages.has(v)) state.ages.delete(v);
+    else state.ages.add(v);
+    renderFilters(); renderCalendar(); renderDayList(); icons();
   });
   document.getElementById('communityFilters').addEventListener('click', e => {
     const b = e.target.closest('[data-community]'); if (!b) return;
-    state.community = b.dataset.community; renderFilters(); renderCalendar(); renderDayList(); icons();
+    const v = b.dataset.community;
+    if (v === ALL_COMMUNITIES) state.communities.clear();
+    else if (state.communities.has(v)) state.communities.delete(v);
+    else state.communities.add(v);
+    renderFilters(); renderCalendar(); renderDayList(); icons();
   });
   document.getElementById('calendarGrid').addEventListener('click', e => {
     const b = e.target.closest('[data-day]'); if (!b) return;
@@ -355,8 +365,8 @@
   });
 
   function buildSummary() {
-    const age = document.getElementById('adminAge').value;
-    const com = document.getElementById('adminCommunity').value;
+    const ages = [...document.querySelectorAll('.adm-age:checked')].map(i => i.value);
+    const coms = [...document.querySelectorAll('.adm-com:checked')].map(i => i.value);
     const now = new Date();
     const startDay = parseKey(toKey(now));
     const endDay = new Date(startDay); endDay.setDate(endDay.getDate() + 7); // 7 ימים קדימה (כולל היום)
@@ -364,13 +374,13 @@
     const list = state.events.filter(e => {
       const d = parseKey(e.date);
       return d >= startDay && d < endDay &&
-        (age === 'הכל' || e.target_age === age) &&
-        (com === ALL_COMMUNITIES || e.community === com);
+        (ages.length === 0 || ages.includes(e.target_age)) &&
+        (coms.length === 0 || coms.includes(e.community));
     });
 
     const parts = [];
-    if (age !== 'הכל') parts.push(`${AGE_EMOJI[age] || ''} ${age}`.trim());
-    if (com !== ALL_COMMUNITIES) parts.push(`🏛️ ${com}`);
+    if (ages.length) parts.push(ages.map(a => `${AGE_EMOJI[a] || ''} ${a}`.trim()).join(', '));
+    if (coms.length) parts.push('🏛️ ' + coms.join(', '));
     let title = '📅 *אירועי השבוע הקרוב*';
     if (parts.length) title += '\n' + parts.join(' | ');
 
@@ -389,7 +399,7 @@
         text += `   🕒 ${timeRange(e)}`;
         if (e.location) text += `  |  📍 ${e.location}`;
         text += '\n';
-        if (e.community && com === ALL_COMMUNITIES) text += `   🏛️ ${e.community}\n`;
+        if (e.community && coms.length !== 1) text += `   🏛️ ${e.community}\n`;
         if (e.description) text += `   ℹ️ ${e.description}\n`;
       });
     });
