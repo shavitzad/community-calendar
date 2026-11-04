@@ -99,6 +99,37 @@
       <h3 id="dayTitle" class="font-extrabold text-lg"></h3>
       <div id="dayList" class="space-y-3"></div>
     </section>
+
+    <!-- Newsletter (Brevo) -->
+    <section id="newsletter" class="mb-10 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm">
+      <div class="flex items-center gap-2 mb-1">
+        <i data-lucide="mail" class="w-5 h-5 text-indigo-600"></i>
+        <h2 class="font-extrabold text-lg">הירשמו לקבלת עדכונים אישיים בכל מוצ"ש ✉️</h2>
+      </div>
+      <p class="text-sm text-slate-600 mb-4">נשלח אליכם בכל מוצאי שבת סיכום של אירועי השבוע הקרוב, רק לפי מה שמעניין אתכם.</p>
+
+      <form id="newsletterForm" class="space-y-4" novalidate>
+        <!-- שדה פח דבש נגד ספאם (חייב להישאר ריק) -->
+        <input type="text" name="email_address_check" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true">
+
+        <div>
+          <label for="nlEmail" class="block text-xs font-bold text-slate-600 mb-1">כתובת אימייל</label>
+          <input id="nlEmail" name="EMAIL" type="email" dir="ltr" inputmode="email" autocomplete="email" required placeholder="name@example.com"
+                 class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-left focus:ring-2 focus:ring-indigo-400 outline-none">
+        </div>
+
+        <div>
+          <div class="text-xs font-bold text-slate-600 mb-1.5">מה מעניין אתכם?</div>
+          <div id="nlAges" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <button id="nlSubmit" type="submit" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold rounded-xl px-6 py-2.5 text-sm transition">
+          <i data-lucide="send" class="w-4 h-4"></i> <span id="nlSubmitLabel">הרשמה לעדכונים</span>
+        </button>
+        <div id="nlStatus" role="status" class="hidden text-sm rounded-xl px-3 py-2"></div>
+        <p class="text-[11px] text-slate-500">אפשר להסיר את ההרשמה בכל עת דרך הקישור בתחתית כל מייל.</p>
+      </form>
+    </section>
   </main>
 
   <!-- Password modal -->
@@ -464,6 +495,66 @@
     lbl.textContent = 'הועתק ✓';
     setTimeout(() => lbl.textContent = 'העתק טקסט', 2000);
   });
+
+  /* ---------- Newsletter (Brevo) ---------- */
+  /* ===================== הגדרות Brevo – להדביק כאן ===================== */
+  // כתובת ה-action של הטופס מ-Brevo (Forms ← הטופס שלך ← Share ← Embed/HTML).
+  // נראית בערך כך: 'https://xxxxxxxx.sibforms.com/serve/MUIFA....'
+  const BREVO_FORM_URL = '';          // <<< הדביקו כאן את ה-URL (או את ה-Form ID המלא בסוף הכתובת)
+  const BREVO_EMAIL_FIELD = 'EMAIL';  // שם שדה האימייל ב-Brevo (בדרך כלל EMAIL)
+  const BREVO_AGE_FIELD = 'TARGET_AGE'; // שם התכונה (Attribute) לקהלי יעד – תואם למה שהגדרתם ב-Brevo
+  /* ===================================================================== */
+
+  (function initNewsletter() {
+    const agesBox = document.getElementById('nlAges');
+    const form = document.getElementById('newsletterForm');
+    const status = document.getElementById('nlStatus');
+    const btn = document.getElementById('nlSubmit');
+    const label = document.getElementById('nlSubmitLabel');
+
+    // מילוי מראש לפי הסינון שהמשתמש כבר בחר באתר
+    agesBox.innerHTML = ['משפחות', 'נוער', 'מבוגרים'].map(v => `
+      <label class="cursor-pointer select-none">
+        <input type="checkbox" class="peer sr-only nl-age" value="${v}" ${state.ages.has(v) ? 'checked' : ''}>
+        <span class="inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium bg-white text-slate-700 border-slate-300 hover:bg-slate-100 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400 transition">${v} ${AGE_EMOJI[v]}</span>
+      </label>`).join('');
+
+    function show(msg, kind) {
+      status.textContent = msg;
+      status.className = 'text-sm rounded-xl px-3 py-2 ' + (kind === 'ok'
+        ? 'bg-green-50 text-green-700 border border-green-200'
+        : 'bg-red-50 text-red-700 border border-red-200');
+    }
+
+    form.addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const email = document.getElementById('nlEmail').value.trim();
+      const ages = [...document.querySelectorAll('.nl-age:checked')].map(i => i.value);
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return show('נא להזין כתובת אימייל תקינה.', 'err');
+      if (!ages.length) return show('נא לבחור לפחות קהל יעד אחד.', 'err');
+      if (form.elements['email_address_check'].value) return; // בוט
+      if (!BREVO_FORM_URL) return show('ההרשמה טרם הוגדרה – יש להדביק את כתובת הטופס של Brevo בקוד (BREVO_FORM_URL).', 'err');
+
+      const body = new URLSearchParams();
+      body.append(BREVO_EMAIL_FIELD, email);
+      ages.forEach(a => body.append(BREVO_AGE_FIELD, a)); // ערכים מרובים לאותו שדה
+      body.append('email_address_check', '');
+      body.append('locale', 'he');
+
+      btn.disabled = true; label.textContent = 'שולח…';
+      try {
+        // no-cors: Brevo לא מחזיר כותרות CORS, לכן התשובה אטומה ונחשבת הצלחה אם הבקשה יצאה
+        await fetch(BREVO_FORM_URL, { method: 'POST', mode: 'no-cors', body });
+        show('תודה! נרשמתם בהצלחה. אם הוגדר אישור במייל – נא ללחוץ על הקישור שנשלח אליכם.', 'ok');
+        form.reset();
+      } catch (e) {
+        show('אירעה שגיאה בשליחה. נסו שוב מאוחר יותר.', 'err');
+      } finally {
+        btn.disabled = false; label.textContent = 'הרשמה לעדכונים';
+      }
+    });
+  })();
 
   /* ---------- Init ---------- */
   icons();
