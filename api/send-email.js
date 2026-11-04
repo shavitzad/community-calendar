@@ -1,27 +1,37 @@
-async function sendWeeklySummaryToBrevo() {
-    try {
-        // 1. משיכת ה-JSON המקומי
-        const response = await fetch('./events.json');
-        const jsonData = await response.json();
+export default async function handler(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ message: 'Method not allowed' });
+    }
 
-        // 2. קריאה לשרת ה-Vercel שלנו (הוא כבר מכיר את המפתח בסתר)
-        const vercelResponse = await fetch('/api/send-email', {
+    try {
+        const { events } = req.body;
+        const BREVO_API_KEY = process.env.BREVO_API_KEY; 
+
+        // שליחת הנתונים לברבו
+        const brevoResponse = await fetch('https://brevo.com', {
             method: 'POST',
             headers: {
-                'content-type': 'application/json'
+                'accept': 'application/json',
+                'content-type': 'application/json',
+                'api-key': BREVO_API_KEY
             },
             body: JSON.stringify({
-                events: jsonData.events
+                "email": "forumraaj@gmail.com", // המייל של המנהל שיפעיל את הטריגר
+                "listIds":, // הגדרת רשימה מספר 5 שלכם
+                "updateEnabled": true,
+                "params": {
+                    "events": events // הזרמת מערך האירועים לקלנדר במייל
+                }
             })
         });
 
-        if (vercelResponse.ok) {
-            alert('🚀 העדכון השבועי נשלח בהצלחה לכל תושבי מזכרת בתיה!');
+        if (brevoResponse.ok) {
+            return res.status(200).json({ message: 'Success' });
         } else {
-            alert('שגיאה בשליחה, בדקו את ה-Console ב-Vercel');
+            const err = await brevoResponse.json();
+            return res.status(brevoResponse.status).json(err);
         }
     } catch (error) {
-        console.error(error);
-        alert('שגיאה בתהליך השליחה');
+        return res.status(500).json({ message: error.message });
     }
 }
