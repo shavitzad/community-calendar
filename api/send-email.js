@@ -16,7 +16,7 @@ export default async function handler(req, res) {
                 'api-key': BREVO_API_KEY
             },
             body: JSON.stringify({
-                "email": "forumraaj@gmail.com", // המייל של המנהל שיפעיל את הטריגר
+                "email": "forum.raa@gmail.com", // המייל של המנהל שיפעיל את הטריגר
                 "listIds":[5], // הגדרת רשימה מספר 5 שלכם
                 "updateEnabled": true,
                 "params": {
