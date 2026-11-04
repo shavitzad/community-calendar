@@ -62,6 +62,19 @@
           <i data-lucide="copy" class="w-4 h-4"></i> <span id="copyLabel">העתק טקסט</span>
         </button>
       </div>
+
+      <!-- מערכת דיוור קהילתית (Brevo) -->
+      <div class="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 space-y-3">
+        <h3 class="font-extrabold text-blue-900 flex items-center gap-2">
+          <i data-lucide="mail" class="w-5 h-5"></i> 📧 מערכת דיוור קהילתית (Brevo)
+        </h3>
+        <p class="text-sm text-slate-600">לחיצה על הכפתור תמשוך את האירועים מקובץ ה-JSON ותפיץ אותם במייל תזכורת חגיגי לכל התושבים הרשומים במערכת.</p>
+        <button id="brevoSendBtn" type="button" onclick="sendWeeklySummaryToBrevo()"
+                class="cursor-pointer flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl px-5 py-2 text-sm shadow-sm transition">
+          <i data-lucide="send" class="w-4 h-4"></i> <span id="brevoSendLabel">שליחת סיכום שבועי במייל</span>
+        </button>
+        <div id="brevoStatus" role="status" class="hidden text-sm rounded-xl px-3 py-2"></div>
+      </div>
     </section>
 
     <!-- Filters -->
@@ -495,6 +508,67 @@
     lbl.textContent = 'הועתק ✓';
     setTimeout(() => lbl.textContent = 'העתק טקסט', 2000);
   });
+
+  /* ---------- שליחת סיכום שבועי ל-Brevo (אזור מנהל) ---------- */
+  /* ===================== הגדרות – להחליף לפני שימוש ===================== */
+  const BREVO_API_KEY = 'YOUR_BREVO_API_KEY_HERE';
+  const BREVO_API_URL = 'https://api.brevo.com/v3/contacts'; // נקודת הקצה של Brevo (Create/Update contact)
+  const BREVO_TARGET_EMAIL = 'forumraaj@gmail.com';
+  const BREVO_LIST_IDS = [];                                  // מספרי הרשימות ב-Brevo, למשל [2]
+  /* ===================================================================== */
+
+  async function sendWeeklySummaryToBrevo() {
+    const btn = document.getElementById('brevoSendBtn');
+    const lbl = document.getElementById('brevoSendLabel');
+    const box = document.getElementById('brevoStatus');
+    const show = (msg, ok) => {
+      box.textContent = msg;
+      box.className = 'text-sm rounded-xl px-3 py-2 border ' + (ok
+        ? 'bg-green-50 text-green-700 border-green-200'
+        : 'bg-red-50 text-red-700 border-red-200');
+    };
+
+    btn.disabled = true; lbl.textContent = 'שולח…';
+    box.className = 'hidden';
+    try {
+      // 1. קריאת האירועים מהקובץ המקומי (עם timestamp נגד cache)
+      const jsonRes = await fetch('./events.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!jsonRes.ok) throw new Error('טעינת events.json נכשלה (' + jsonRes.status + ')');
+      const jsonData = await jsonRes.json();
+      // תומך גם במבנה { "events": [...] } וגם במערך ישיר (כמו הקובץ הנוכחי)
+      const events = Array.isArray(jsonData) ? jsonData : (jsonData.events || []);
+
+      // 2. שליחה ל-Brevo
+      const res = await fetch(BREVO_API_URL, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'api-key': BREVO_API_KEY
+        },
+        body: JSON.stringify({
+          email: BREVO_TARGET_EMAIL,
+          listIds: BREVO_LIST_IDS,
+          updateEnabled: true,
+          params: { events: events }
+        })
+      });
+
+      if (res.status === 200 || res.status === 201 || res.status === 204) {
+        show('✅ השליחה הצליחה (' + res.status + ').', true);
+        alert('השליחה ל-Brevo הצליחה ✅');
+      } else {
+        const errText = await res.text();
+        throw new Error('Brevo החזיר ' + res.status + ': ' + errText);
+      }
+    } catch (err) {
+      console.error('שגיאה בשליחה ל-Brevo:', err);
+      show('❌ השליחה נכשלה: ' + err.message, false);
+      alert('השליחה ל-Brevo נכשלה ❌\n' + err.message);
+    } finally {
+      btn.disabled = false; lbl.textContent = 'שליחת סיכום שבועי במייל';
+    }
+  }
 
   /* ---------- Newsletter (Brevo) ---------- */
   /* ===================== הגדרות Brevo – להדביק כאן ===================== */
