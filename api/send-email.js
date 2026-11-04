@@ -17,7 +17,7 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 "email": "forumraaj@gmail.com", // המייל של המנהל שיפעיל את הטריגר
-                "listIds":, // הגדרת רשימה מספר 5 שלכם
+                "listIds":[5], // הגדרת רשימה מספר 5 שלכם
                 "updateEnabled": true,
                 "params": {
                     "events": events // הזרמת מערך האירועים לקלנדר במייל
