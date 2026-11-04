@@ -510,11 +510,10 @@
   });
 
   /* ---------- שליחת סיכום שבועי ל-Brevo (אזור מנהל) ---------- */
-  /* ===================== הגדרות – להחליף לפני שימוש ===================== */
-  const BREVO_API_KEY = 'YOUR_BREVO_API_KEY_HERE';
+  const BREVO_API_KEY = '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';
   const BREVO_API_URL = 'https://api.brevo.com/v3/contacts'; // נקודת הקצה של Brevo (Create/Update contact)
   const BREVO_TARGET_EMAIL = 'forumraaj@gmail.com';
-  const BREVO_LIST_IDS = [];                                  // מספרי הרשימות ב-Brevo, למשל [2]
+  const BREVO_LIST_IDS = [5];                                  // מספרי הרשימות ב-Brevo, למשל [2]
   /* ===================================================================== */
 
   async function sendWeeklySummaryToBrevo() {
