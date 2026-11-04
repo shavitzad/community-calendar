@@ -635,6 +635,58 @@
   /* ---------- Init ---------- */
   icons();
   loadEvents();
+  // פונקציית שליחת הסיכום השבועי המאובטחת ל-Vercel Serverless Function
+async function sendWeeklySummaryToBrevo() {
+  const sendBtn = document.getElementById('brevoSendBtn');
+  const sendLabel = document.getElementById('brevoSendLabel');
+  const statusDiv = document.getElementById('brevoStatus');
+
+  // שינוי מצב כפתור למניעת לחיצות כפולות
+  sendBtn.disabled = true;
+  sendLabel.textContent = 'שולח עדכון... ⏳';
+  statusDiv.className = 'hidden';
+
+  try {
+    // 1. משיכת נתוני האירועים הקהילתיים מקובץ ה-JSON
+    const response = await fetch('./events.json');
+    if (!response.ok) throw new Error('לא ניתן לקרוא את קובץ האירועים events.json');
+    const jsonData = await response.json();
+
+    // 2. קריאה לשרת ה-Vercel הפנימי (השרת מחזיק את ה-API Key המאובטח)
+    const vercelResponse = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ events: jsonData.events })
+    });
+
+    // 3. תגובה למשתמש בהתאם לתוצאה
+    if (vercelResponse.ok) {
+      statusDiv.textContent = '🚀 העדכון השבועי נשלח בהצלחה לכל תושבי מזכרת בתיה!';
+      statusDiv.className = 'text-sm rounded-xl px-3 py-2 bg-green-100 text-green-800 font-bold';
+    } else {
+      const errData = await vercelResponse.json().catch(() => ({}));
+      console.error('שגיאת שרת Vercel:', errData);
+      statusDiv.textContent = '❌ השליחה נכשלה. ודאו שהגדרתם את ה-API Key ב-Vercel.';
+      statusDiv.className = 'text-sm rounded-xl px-3 py-2 bg-red-100 text-red-800 font-bold';
+    }
+  } catch (error) {
+    console.error('שגיאת תקשורת:', error);
+    statusDiv.textContent = '❌ שגיאת רשת במשיכת הקבצים או בחיבור לשרת.';
+    statusDiv.className = 'text-sm rounded-xl px-3 py-2 bg-red-100 text-red-800 font-bold';
+  } finally {
+    // החזרת הכפתור למצב פעיל
+    sendBtn.disabled = false;
+    sendLabel.textContent = 'שליחת סיכום שבועי במייל';
+  }
+}
+
+// אתחול האייקונים של Lucide בעמוד
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof lucide !== "undefined") {
+    lucide.createIcons();
+  }
+});
+
 </script>
 </body>
 </html>
