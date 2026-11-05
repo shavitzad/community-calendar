@@ -520,57 +520,29 @@
   /* ===================================================================== */
 
   async function sendWeeklySummaryToBrevo() {
-    const btn = document.getElementById('brevoSendBtn');
-    const lbl = document.getElementById('brevoSendLabel');
-    const box = document.getElementById('brevoStatus');
-    const show = (msg, ok) => {
-      box.textContent = msg;
-      box.className = 'text-sm rounded-xl px-3 py-2 border ' + (ok
-        ? 'bg-green-50 text-green-700 border-green-200'
-        : 'bg-red-50 text-red-700 border-red-200');
-    };
-
-    btn.disabled = true; lbl.textContent = 'שולח…';
-    box.className = 'hidden';
     try {
-      // 1. קריאת האירועים מהקובץ המקומי (עם timestamp נגד cache)
-      const jsonRes = await fetch('./events.json?t=' + Date.now(), { cache: 'no-store' });
-      if (!jsonRes.ok) throw new Error('טעינת events.json נכשלה (' + jsonRes.status + ')');
-      const jsonData = await jsonRes.json();
-      // תומך גם במבנה { "events": [...] } וגם במערך ישיר (כמו הקובץ הנוכחי)
-      const events = Array.isArray(jsonData) ? jsonData : (jsonData.events || []);
+        // קריאה לשרת ה-Vercel הפנימי
+        const vercelResponse = await fetch('/api/send-email', { 
+            method: 'POST', 
+            headers: { 'content-type': 'application/json' }, 
+            body: JSON.stringify({ events: jsonData.events }) 
+        });
 
-      // 2. שליחה ל-Brevo
-      const res = await fetch(BREVO_API_URL, {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'content-type': 'application/json',
-          'api-key': BREVO_API_KEY
-        },
-        body: JSON.stringify({
-          email: BREVO_TARGET_EMAIL,
-          listIds: BREVO_LIST_IDS,
-          updateEnabled: true,
-          params: { events: events }
-        })
-      });
+        if (!vercelResponse.ok) {
+            throw new Error(`Server responded with status: ${vercelResponse.status}`);
+        }
 
-      if (res.status === 200 || res.status === 201 || res.status === 204) {
-        show('✅ השליחה הצליחה (' + res.status + ').', true);
-        alert('השליחה ל-Brevo הצליחה ✅');
-      } else {
-        const errText = await res.text();
-        throw new Error('Brevo החזיר ' + res.status + ': ' + errText);
-      }
-    } catch (err) {
-      console.error('שגיאה בשליחה ל-Brevo:', err);
-      show('❌ השליחה נכשלה: ' + err.message, false);
-      alert('השליחה ל-Brevo נכשלה ❌\n' + err.message);
-    } finally {
-      btn.disabled = false; lbl.textContent = 'שליחת סיכום שבועי במייל';
+        // תיקון קריטי: קוראים את התשובה כטקסט נקי במקום כ-JSON כדי למנוע קריסה
+        const resultText = await vercelResponse.text();
+        console.log('האימייל נשלח בהצלחה:', resultText);
+        
+        alert('הסיכום השבועי נשלח בהצלחה במייל!');
+
+    } catch (error) {
+        console.error('שגיאה בשליחת המייל:', error);
+        alert('שליחת האימייל נכשלה. בדקו את ה-Console.');
     }
-  }
+}
 
   /* ---------- Newsletter (Brevo) ---------- */
   /* ===================== הגדרות Brevo – להדביק כאן ===================== */
