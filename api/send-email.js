@@ -14,7 +14,7 @@ export default async function handler(req, res) {
         // המרת מערך האירועים לטקסט קריא עבור התבנית בברבו
         const eventsText = typeof events === 'object' ? JSON.stringify(events, null, 2) : events;
 
-        const brevoResponse = await fetch('https://brevo.com', {
+        const brevoResponse = await fetch('https://api.brevo.com', {
             method: 'POST',
             headers: {
                 'accept': 'application/json',
