@@ -574,18 +574,16 @@
         }
 
     } catch (error) {
-        console.error('שגיאה בתהליך השליחה:', error);
+        console.error('שגיאה מלאה ומפורטת:', error);
+        // שורת הדיבאג החדשה: תדפיס ב-Console את השורה המדויקת שקורסת בקוד
+        console.log('מיקום מדויק של הקריסה:', error.stack); 
         
-        // הצגת הודעת שגיאה אדומה ומפורטת למשתמש
         if (statusDiv) {
             statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-red-50 text-red-800 border border-red-200";
             statusDiv.textContent = `השליחה נכשלה: ${error.message}`;
         }
-    } finally {
-        // החזרת הכפתור למצב פעיל
-        if (sendBtn) sendBtn.disabled = false;
-        if (sendLabel) sendLabel.textContent = "שליחת סיכום שבועי במייל";
     }
+
 }
 
 
