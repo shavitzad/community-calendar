@@ -553,15 +553,24 @@
         });
 
         // 4. אם השרת החזיר שגיאה (למשל קוד 500 או 400)
-        if (!vercelResponse.ok) {
-            // ננסה לקרוא את הודעת השגיאה הפנימית אם קיימת
+                if (!vercelResponse.ok) {
+            // הגנה מפני קריסה: נתחיל עם הודעת שגיאה בסיסית
             let errMessage = `Server responded with status: ${vercelResponse.status}`;
             try {
-                const errData = await vercelResponse.json();
-                if (errData && errData.message) errMessage = errData.message;
-            } catch(e) {}
+                // קריאת התשובה כטקסט נקי כדי למנוע את השגיאה לחלוטין
+                const errText = await vercelResponse.text();
+                
+                // ננסה להמיר ל-JSON רק אם הטקסט לא ריק ומעוצב נכון
+                if (errText && errText.trim().startsWith('{')) {
+                    const errData = JSON.parse(errText);
+                    if (errData && errData.message) errMessage = errData.message;
+                }
+            } catch(e) {
+                // אם הפירוק נכשל, נשארים עם הודעת הסטטוס הבסיסית
+            }
             throw new Error(errMessage);
         }
+
 
         // 5. תיקון קריטי: קריאת התשובה כטקסט נקי כדי למנוע את שגיאת Unexpected end of JSON
         const resultText = await vercelResponse.text();
