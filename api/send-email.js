@@ -8,7 +8,7 @@ export default async function handler(req, res) {
         const BREVO_API_KEY = process.env.BREVO_API_KEY; 
 
         // שליחת הנתונים לברבו
-        const brevoResponse = await fetch('https://brevo.com', {
+        const brevoResponse = await fetch('https://api.brevo.com', {
             method: 'POST',
             headers: {
                 'accept': 'application/json',
