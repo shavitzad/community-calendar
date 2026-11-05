@@ -529,14 +529,19 @@
         // 1. הגדרת מצב טעינה במסך
         if (statusDiv) {
             statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-yellow-50 text-yellow-800 border border-yellow-200";
-            statusDiv.textContent = "שולח את הסיכום במייל, אנא המתן...";
+            statusDiv.textContent = "מושך נתונים ושולח את הסיכום במייל, אנא המתן...";
             statusDiv.classList.remove('hidden');
         }
         if (sendBtn) sendBtn.disabled = true;
         if (sendLabel) sendLabel.textContent = "שולח...";
 
+        // [בטוח ביותר] - משיכת נתוני האירועים הקהילתיים מקובץ ה-JSON המקומי ברגע הלחיצה
+        const response = await fetch('./events.json');
+        if (!response.ok) throw new Error('לא ניתן לקרוא את קובץ האירועים events.json');
+        const currentJsonData = await response.json();
+
         // 2. וידוא שיש נתונים זמינים לשליחה
-        if (!jsonData || !jsonData.events) {
+        if (!currentJsonData || !currentJsonData.events) {
             throw new Error("לא נמצאו אירועים זמינים בקובץ הנתונים לשליחה.");
         }
 
@@ -544,7 +549,7 @@
         const vercelResponse = await fetch('/api/send-email', { 
             method: 'POST', 
             headers: { 'content-type': 'application/json' }, 
-            body: JSON.stringify({ events: jsonData.events }) 
+            body: JSON.stringify({ events: currentJsonData.events }) 
         });
 
         // 4. אם השרת החזיר שגיאה (למשל קוד 500 או 400)
@@ -564,8 +569,8 @@
 
         // 6. הצגת הודעת הצלחה ירוקה ויפה על המסך
         if (statusDiv) {
-            statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-green-50 text-green-800 border border-green-200";
-            statusDiv.textContent = "האימייל הופץ בהצלחה לכל התושבים הרשומים! 🎉";
+            statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-green-50 text-green-800 border border-green-200 font-bold";
+            statusDiv.textContent = "🚀 העדכון השבועי נשלח בהצלחה לכל תושבי מזכרת בתיה!";
         }
 
     } catch (error) {
@@ -647,58 +652,6 @@
   /* ---------- Init ---------- */
   icons();
   loadEvents();
-  // פונקציית שליחת הסיכום השבועי המאובטחת ל-Vercel Serverless Function
-async function sendWeeklySummaryToBrevo() {
-  const sendBtn = document.getElementById('brevoSendBtn');
-  const sendLabel = document.getElementById('brevoSendLabel');
-  const statusDiv = document.getElementById('brevoStatus');
-
-  // שינוי מצב כפתור למניעת לחיצות כפולות
-  sendBtn.disabled = true;
-  sendLabel.textContent = 'שולח עדכון... ⏳';
-  statusDiv.className = 'hidden';
-
-  try {
-    // 1. משיכת נתוני האירועים הקהילתיים מקובץ ה-JSON
-    const response = await fetch('./events.json');
-    if (!response.ok) throw new Error('לא ניתן לקרוא את קובץ האירועים events.json');
-    const jsonData = await response.json();
-
-    // 2. קריאה לשרת ה-Vercel הפנימי (השרת מחזיק את ה-API Key המאובטח)
-    const vercelResponse = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ events: jsonData.events })
-    });
-
-    // 3. תגובה למשתמש בהתאם לתוצאה
-    if (vercelResponse.ok) {
-      statusDiv.textContent = '🚀 העדכון השבועי נשלח בהצלחה לכל תושבי מזכרת בתיה!';
-      statusDiv.className = 'text-sm rounded-xl px-3 py-2 bg-green-100 text-green-800 font-bold';
-    } else {
-      const errData = await vercelResponse.json().catch(() => ({}));
-      console.error('שגיאת שרת Vercel:', errData);
-      statusDiv.textContent = '❌ השליחה נכשלה. ודאו שהגדרתם את ה-API Key ב-Vercel.';
-      statusDiv.className = 'text-sm rounded-xl px-3 py-2 bg-red-100 text-red-800 font-bold';
-    }
-  } catch (error) {
-    console.error('שגיאת תקשורת:', error);
-    statusDiv.textContent = '❌ שגיאת רשת במשיכת הקבצים או בחיבור לשרת.';
-    statusDiv.className = 'text-sm rounded-xl px-3 py-2 bg-red-100 text-red-800 font-bold';
-  } finally {
-    // החזרת הכפתור למצב פעיל
-    sendBtn.disabled = false;
-    sendLabel.textContent = 'שליחת סיכום שבועי במייל';
-  }
-}
-
-// אתחול האייקונים של Lucide בעמוד
-document.addEventListener("DOMContentLoaded", () => {
-  if (typeof lucide !== "undefined") {
-    lucide.createIcons();
-  }
-});
-
 </script>
 </body>
 </html>
