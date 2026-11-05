@@ -13,7 +13,7 @@
   {
     "id": 2,
     "title": "קחי את הכסף בידיים שלך!",
-    "date": "2026-11-03",
+    "date": "2026-11-10",
     "start_time": "18:00",
     "end_time": "21:00",
     "location": "אגף החינוך, רוטשילד 37",
@@ -31,7 +31,8 @@
     "location": "בית המתנדב",
     "description": "סיפורה המרתק של אישה פורצת דרך שצעדה ראשונה אל מעבר לקווי האויב ושינתה את פני המציאות המבצעית",
     "target_age": "מבוגרים",
-    "community": "חיבו\"ק"
+    "community": "חיבו\"ק",
+    "link": "https://tinyurl.com/47fkaj62"
   },
   {
     "id": 4,
@@ -53,6 +54,7 @@
     "location": "בית המתנדב",
     "description": "לפרטים והרשמה",
     "target_age": "מבוגרים ונוער",
-    "community": "חיבו\"ק"
+    "community": "חיבו\"ק",
+    "link":"https://tinyurl.com/2hfvecxu"
   }
 ]
