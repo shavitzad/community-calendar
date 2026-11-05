@@ -520,29 +520,69 @@
   /* ===================================================================== */
 
   async function sendWeeklySummaryToBrevo() {
+    // השגת האלמנטים להצגת סטטוס למשתמש
+    const statusDiv = document.getElementById('brevoStatus');
+    const sendLabel = document.getElementById('brevoSendLabel');
+    const sendBtn = document.getElementById('brevoSendBtn');
+
     try {
-        // קריאה לשרת ה-Vercel הפנימי
+        // 1. הגדרת מצב טעינה במסך
+        if (statusDiv) {
+            statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-yellow-50 text-yellow-800 border border-yellow-200";
+            statusDiv.textContent = "שולח את הסיכום במייל, אנא המתן...";
+            statusDiv.classList.remove('hidden');
+        }
+        if (sendBtn) sendBtn.disabled = true;
+        if (sendLabel) sendLabel.textContent = "שולח...";
+
+        // 2. וידוא שיש נתונים זמינים לשליחה
+        if (!jsonData || !jsonData.events) {
+            throw new Error("לא נמצאו אירועים זמינים בקובץ הנתונים לשליחה.");
+        }
+
+        // 3. ביצוע הקריאה לשרת ה-Vercel הפנימי
         const vercelResponse = await fetch('/api/send-email', { 
             method: 'POST', 
             headers: { 'content-type': 'application/json' }, 
             body: JSON.stringify({ events: jsonData.events }) 
         });
 
+        // 4. אם השרת החזיר שגיאה (למשל קוד 500 או 400)
         if (!vercelResponse.ok) {
-            throw new Error(`Server responded with status: ${vercelResponse.status}`);
+            // ננסה לקרוא את הודעת השגיאה הפנימית אם קיימת
+            let errMessage = `Server responded with status: ${vercelResponse.status}`;
+            try {
+                const errData = await vercelResponse.json();
+                if (errData && errData.message) errMessage = errData.message;
+            } catch(e) {}
+            throw new Error(errMessage);
         }
 
-        // תיקון קריטי: קוראים את התשובה כטקסט נקי במקום כ-JSON כדי למנוע קריסה
+        // 5. תיקון קריטי: קריאת התשובה כטקסט נקי כדי למנוע את שגיאת Unexpected end of JSON
         const resultText = await vercelResponse.text();
-        console.log('האימייל נשלח בהצלחה:', resultText);
-        
-        alert('הסיכום השבועי נשלח בהצלחה במייל!');
+        console.log('שרת Vercel החזיר:', resultText);
+
+        // 6. הצגת הודעת הצלחה ירוקה ויפה על המסך
+        if (statusDiv) {
+            statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-green-50 text-green-800 border border-green-200";
+            statusDiv.textContent = "האימייל הופץ בהצלחה לכל התושבים הרשומים! 🎉";
+        }
 
     } catch (error) {
-        console.error('שגיאה בשליחת המייל:', error);
-        alert('שליחת האימייל נכשלה. בדקו את ה-Console.');
+        console.error('שגיאה בתהליך השליחה:', error);
+        
+        // הצגת הודעת שגיאה אדומה ומפורטת למשתמש
+        if (statusDiv) {
+            statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-red-50 text-red-800 border border-red-200";
+            statusDiv.textContent = `השליחה נכשלה: ${error.message}`;
+        }
+    } finally {
+        // החזרת הכפתור למצב פעיל
+        if (sendBtn) sendBtn.disabled = false;
+        if (sendLabel) sendLabel.textContent = "שליחת סיכום שבועי במייל";
     }
 }
+
 
   /* ---------- Newsletter (Brevo) ---------- */
   /* ===================== הגדרות Brevo – להדביק כאן ===================== */
