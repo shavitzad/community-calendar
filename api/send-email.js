@@ -7,8 +7,14 @@ export default async function handler(req, res) {
         const { events } = req.body;
         const BREVO_API_KEY = process.env.BREVO_API_KEY; 
 
-        // שליחת הנתונים לברבו
-        const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+        if (!BREVO_API_KEY) {
+            return res.status(500).json({ message: 'Brevo API Key is missing' });
+        }
+
+        // המרת מערך האירועים לטקסט קריא עבור התבנית בברבו
+        const eventsText = typeof events === 'object' ? JSON.stringify(events, null, 2) : events;
+
+        const brevoResponse = await fetch('https://brevo.com', {
             method: 'POST',
             headers: {
                 'accept': 'application/json',
@@ -16,16 +22,22 @@ export default async function handler(req, res) {
                 'api-key': BREVO_API_KEY
             },
             body: JSON.stringify({
-                "email": "forum.raa@gmail.com", // המייל של המנהל שיפעיל את הטריגר
-                "listIds":[5], // הגדרת רשימה מספר 5 שלכם
-                "updateEnabled": true,
+                // הנמען שיקבל את המייל עם האירועים
+                "to": [
+                    {
+                        "email": "forum.raa@gmail.com",
+                        "name": "מנהל המערכת"
+                    }
+                ],
+                // שימוש ב-ID של התבנית הפעילה שלכם
+                "templateId": 2, 
                 "params": {
-                    "events": events // הזרמת מערך האירועים לקלנדר במייל
+                    "events": eventsText
                 }
             })
         });
 
-        if (brevoResponse.ok) {
+        if (brevoResponse.status === 201 || brevoResponse.ok) {
             return res.status(200).json({ message: 'Success' });
         } else {
             const err = await brevoResponse.json();
