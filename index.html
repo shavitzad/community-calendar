@@ -428,7 +428,7 @@
   function closePw() { pwModal.classList.add('hidden'); }
   function tryLogin() {
     if (pwInput.value === ADMIN_PASSWORD) {
-      state.isAdmin = true; closePw();
+      state.isAdmin = true; state.adminPass = pwInput.value; closePw();
       document.getElementById('adminPanel').classList.remove('hidden');
       icons();
     } else {
@@ -443,7 +443,7 @@
   document.getElementById('pwSubmit').addEventListener('click', tryLogin);
   pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
   document.getElementById('adminLogout').addEventListener('click', () => {
-    state.isAdmin = false;
+    state.isAdmin = false; state.adminPass = '';
     document.getElementById('adminPanel').classList.add('hidden');
     document.getElementById('outputWrap').classList.add('hidden');
   });
@@ -509,92 +509,51 @@
     setTimeout(() => lbl.textContent = 'העתק טקסט', 2000);
   });
 
-  /* ---------- שליחת סיכום שבועי ל-Brevo (אזור מנהל) ---------- */
-  /* ===================== הגדרות – להחליף לפני שימוש ===================== */
- // במקום לכתוב את המפתח הפיזי, נמשוך אותו בצורה בטוחה מסביבת הריצה
-  const urlParams = new URLSearchParams(window.location.search);
-  const BREVO_API_KEY = urlParams.get('brevo_key') || 'YOUR_ENV_KEY';
-  const BREVO_API_URL = 'https://api.brevo.com/v3/contacts'; // נקודת הקצה של Brevo (Create/Update contact)
-  const BREVO_TARGET_EMAIL = 'forumraaj@gmail.com';
-  const BREVO_LIST_IDS = [5];                                  // מספרי הרשימות ב-Brevo, למשל [2]
-  /* ===================================================================== */
-
+  /* ---------- שליחת סיכום שבועי במייל (אזור מנהל) ---------- */
+  // השליחה נעשית דרך השרת (/api/send-email). מפתח ה-API נשמר שם ב-Environment Variables.
   async function sendWeeklySummaryToBrevo() {
-    // השגת האלמנטים להצגת סטטוס למשתמש
-    const statusDiv = document.getElementById('brevoStatus');
-    const sendLabel = document.getElementById('brevoSendLabel');
-    const sendBtn = document.getElementById('brevoSendBtn');
+    if (!confirm('לשלוח עכשיו את סיכום האירועים השבועי במייל לכל הרשומים?')) return;
 
+    const btn = document.getElementById('brevoSendBtn');
+    const lbl = document.getElementById('brevoSendLabel');
+    const box = document.getElementById('brevoStatus');
+    const show = (msg, ok) => {
+      box.textContent = msg;
+      box.className = 'text-sm rounded-xl px-3 py-2 border ' + (ok
+        ? 'bg-green-50 text-green-700 border-green-200'
+        : 'bg-red-50 text-red-700 border-red-200');
+    };
+
+    btn.disabled = true; lbl.textContent = 'שולח…';
+    box.className = 'hidden';
     try {
-        // 1. הגדרת מצב טעינה במסך
-        if (statusDiv) {
-            statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-yellow-50 text-yellow-800 border border-yellow-200";
-            statusDiv.textContent = "מושך נתונים ושולח את הסיכום במייל, אנא המתן...";
-            statusDiv.classList.remove('hidden');
-        }
-        if (sendBtn) sendBtn.disabled = true;
-        if (sendLabel) sendLabel.textContent = "שולח...";
+      // השרת קורא בעצמו את events.json ובונה את המייל, ולכן אין צורך לשלוח אליו את האירועים
+      const vercelResponse = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-admin-password': state.adminPass || ''
+        },
+        body: JSON.stringify({})
+      });
+      const data = await vercelResponse.json().catch(() => ({}));
 
-        // [בטוח ביותר] - משיכת נתוני האירועים הקהילתיים מקובץ ה-JSON המקומי ברגע הלחיצה
-        const response = await fetch('./events.json');
-        if (!response.ok) throw new Error('לא ניתן לקרוא את קובץ האירועים events.json');
-        const currentJsonData = await response.json();
-
-        // 2. וידוא שיש נתונים זמינים לשליחה
-        if (!currentJsonData || !currentJsonData.events) {
-            throw new Error("לא נמצאו אירועים זמינים בקובץ הנתונים לשליחה.");
-        }
-
-        // 3. ביצוע הקריאה לשרת ה-Vercel הפנימי
-        const vercelResponse = await fetch('/api/send-email', { 
-            method: 'POST', 
-            headers: { 'content-type': 'application/json' }, 
-            body: JSON.stringify({ events: currentJsonData.events }) 
-        });
-
-        // 4. אם השרת החזיר שגיאה (למשל קוד 500 או 400)
-                if (!vercelResponse.ok) {
-            // הגנה מפני קריסה: נתחיל עם הודעת שגיאה בסיסית
-            let errMessage = `Server responded with status: ${vercelResponse.status}`;
-            try {
-                // קריאת התשובה כטקסט נקי כדי למנוע את השגיאה לחלוטין
-                const errText = await vercelResponse.text();
-                
-                // ננסה להמיר ל-JSON רק אם הטקסט לא ריק ומעוצב נכון
-                if (errText && errText.trim().startsWith('{')) {
-                    const errData = JSON.parse(errText);
-                    if (errData && errData.message) errMessage = errData.message;
-                }
-            } catch(e) {
-                // אם הפירוק נכשל, נשארים עם הודעת הסטטוס הבסיסית
-            }
-            throw new Error(errMessage);
-        }
-
-
-        // 5. תיקון קריטי: קריאת התשובה כטקסט נקי כדי למנוע את שגיאת Unexpected end of JSON
-        const resultText = await vercelResponse.text();
-        console.log('שרת Vercel החזיר:', resultText);
-
-        // 6. הצגת הודעת הצלחה ירוקה ויפה על המסך
-        if (statusDiv) {
-            statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-green-50 text-green-800 border border-green-200 font-bold";
-            statusDiv.textContent = "🚀 העדכון השבועי נשלח בהצלחה לכל תושבי מזכרת בתיה!";
-        }
-
-    } catch (error) {
-        console.error('שגיאה מלאה ומפורטת:', error);
-        // שורת הדיבאג החדשה: תדפיס ב-Console את השורה המדויקת שקורסת בקוד
-        console.log('מיקום מדויק של הקריסה:', error.stack); 
-        
-        if (statusDiv) {
-            statusDiv.className = "text-sm rounded-xl px-3 py-2 bg-red-50 text-red-800 border border-red-200";
-            statusDiv.textContent = `השליחה נכשלה: ${error.message}`;
-        }
+      if (vercelResponse.ok) {
+        show('🚀 העדכון השבועי נשלח בהצלחה לכל תושבי מזכרת בתיה!', true);
+        alert('🚀 העדכון השבועי נשלח בהצלחה לכל תושבי מזכרת בתיה!');
+      } else {
+        console.error('שגיאת שרת:', vercelResponse.status, data);
+        show('❌ ' + (data.message || ('השרת החזיר שגיאה ' + vercelResponse.status)), false);
+        alert('שגיאה בשליחה, בדקו את ה-Console ב-Vercel');
+      }
+    } catch (err) {
+      console.error('שגיאת תקשורת:', err);
+      show('❌ שגיאת רשת בחיבור לשרת.', false);
+      alert('שגיאה בשליחה, בדקו את ה-Console ב-Vercel');
+    } finally {
+      btn.disabled = false; lbl.textContent = 'שליחת סיכום שבועי במייל';
     }
-
-}
-
+  }
 
   /* ---------- Newsletter (Brevo) ---------- */
   /* ===================== הגדרות Brevo – להדביק כאן ===================== */
@@ -659,6 +618,14 @@
   /* ---------- Init ---------- */
   icons();
   loadEvents();
+
+  // אתחול האייקונים של Lucide בעמוד
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof lucide !== "undefined") {
+    lucide.createIcons();
+  }
+});
+
 </script>
 </body>
 </html>
