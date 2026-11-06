@@ -34,7 +34,20 @@ function buildHtml(events) {
   events.forEach((e) => { (byDay[e.date] ||= []).push(e); });
 
   const days = Object.keys(byDay).sort().map((k) => {
-    const items = byDay[k].map((e) => `
+    const items = byDay[k].map((e) => {
+      // חילוץ הקישור מתוך השדות האפשריים ב-JSON שלכם
+      const targetUrl = e.link || e.url || e.registrationUrl || e.registration_link;
+      
+      // יצירת כפתור לחיץ מעוצב אם נמצא קישור תקין באירוע
+      const linkButton = targetUrl ? `
+        <div style="margin-top:10px;">
+          <a href="${esc(targetUrl)}" target="_blank" 
+             style="display:inline-block;background-color:#4f46e5;color:#ffffff;padding:8px 16px;text-decoration:none;border-radius:8px;font-size:13px;font-weight:bold;">
+             לחצו כאן לפרטים והרשמה ➔
+          </a>
+        </div>` : '';
+
+      return `
       <div style="margin:0 0 14px;padding:12px 14px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px">
         <div style="font-size:16px;font-weight:700;color:#1e293b">${AGE[e.target_age] || '🎉'} ${esc(e.title)}</div>
         <div style="font-size:14px;color:#475569;margin-top:4px">
@@ -42,7 +55,9 @@ function buildHtml(events) {
         </div>
         ${e.description ? `<div style="font-size:14px;color:#334155;margin-top:6px">${esc(e.description)}</div>` : ''}
         ${e.community ? `<div style="font-size:12px;color:#4f46e5;margin-top:6px">🏛️ ${esc(e.community)}</div>` : ''}
-      </div>`).join('');
+        ${linkButton}
+      </div>`;
+    }).join('');
     return `<h3 style="margin:22px 0 8px;font-size:17px;color:#4338ca">🗓️ ${esc(dayLabel(k))}</h3>${items}`;
   }).join('');
 
@@ -100,7 +115,7 @@ module.exports = async function handler(req, res) {
     const senderName = process.env.BREVO_SENDER_NAME || 'ALL EVENTS מזכרת בתיה';
     const listId = parseInt(process.env.BREVO_LIST_ID || '5', 10);
 
-    // 3. האירועים מגיעים מהדפדפן של המנהל (שטען את events.json). הגישה מוגנת בסיסמה, והתוכן עובר escape לפני הכנסתו למייל.
+    // 3. האירועים מגיעים מהדפדפן של המנהל
     let body = req.body;
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch (e) { body = {}; }
@@ -111,7 +126,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ message: 'לא התקבלו אירועים מהדפדפן (events.json ריק או לא נטען).' });
     }
 
-    // 4. אירועי 7 הימים הקרובים (כולל היום, שעון ישראל)
+    // 4. אירועי 7 הימים הקרובים
     const start = todayKey();
     const end = addDays(start, 7);
     const events = all
