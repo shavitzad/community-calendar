@@ -527,14 +527,20 @@
     btn.disabled = true; lbl.textContent = 'שולח…';
     box.className = 'hidden';
     try {
-      // השרת קורא בעצמו את events.json ובונה את המייל, ולכן אין צורך לשלוח אליו את האירועים
+      // 1. טעינת האירועים מהקובץ המקומי (עם timestamp נגד cache)
+      const jsonRes = await fetch('./events.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!jsonRes.ok) throw new Error('טעינת events.json נכשלה (' + jsonRes.status + ')');
+      const jsonData = await jsonRes.json();
+      const events = Array.isArray(jsonData) ? jsonData : (jsonData.events || []);
+
+      // 2. שליחה לשרת הפנימי (המפתח של Brevo נשמר שם בלבד)
       const vercelResponse = await fetch('/api/send-email', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'x-admin-password': state.adminPass || ''
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({ events: events })
       });
       const data = await vercelResponse.json().catch(() => ({}));
 
