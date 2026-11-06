@@ -5,7 +5,7 @@
 //   BREVO_SENDER_EMAIL  (חובה) כתובת שולח שאומתה ב-Brevo (Senders & IP → Senders)
 //   BREVO_SENDER_NAME   (אופציונלי) שם השולח. ברירת מחדל: ALL EVENTS מזכרת בתיה
 //   BREVO_LIST_ID       (אופציונלי) מספר הרשימה. ברירת מחדל: 5
-//   ADMIN_PASSWORD      (מומלץ) סיסמת המנהל; בלעדיה כל אחד יכול להפעיל שליחה לכל התושבים
+//   ADMIN_PASSWORD      (חובה) סיסמת המנהל; בלעדיה השרת מסרב לשלוח, כדי שאי אפשר יהיה להפעיל שליחה המונית ללא הרשאה
 
 const BREVO = 'https://api.brevo.com/v3';
 const TZ = 'Asia/Jerusalem';
@@ -82,7 +82,10 @@ module.exports = async function handler(req, res) {
   try {
     // 1. אימות מנהל
     const adminPassword = process.env.ADMIN_PASSWORD;
-    if (adminPassword && req.headers['x-admin-password'] !== adminPassword) {
+    if (!adminPassword) {
+      return res.status(500).json({ message: 'חסר ADMIN_PASSWORD ב-Environment Variables של Vercel (נדרש כדי שלא יהיה אפשר להפעיל שליחה המונית ללא הרשאה).' });
+    }
+    if (req.headers['x-admin-password'] !== adminPassword) {
       return res.status(401).json({ message: 'אין הרשאה: סיסמת מנהל שגויה.' });
     }
 
@@ -97,14 +100,16 @@ module.exports = async function handler(req, res) {
     const senderName = process.env.BREVO_SENDER_NAME || 'ALL EVENTS מזכרת בתיה';
     const listId = parseInt(process.env.BREVO_LIST_ID || '5', 10);
 
-    // 3. קריאת האירועים מהאתר עצמו (לא סומכים על מה שהדפדפן שולח)
-    const proto = req.headers['x-forwarded-proto'] || 'https';
-    const evRes = await fetch(`${proto}://${req.headers.host}/events.json?t=${Date.now()}`, { cache: 'no-store' });
-    if (!evRes.ok) {
-      return res.status(500).json({ message: `טעינת events.json נכשלה (${evRes.status}).` });
+    // 3. האירועים מגיעים מהדפדפן של המנהל (שטען את events.json). הגישה מוגנת בסיסמה, והתוכן עובר escape לפני הכנסתו למייל.
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (e) { body = {}; }
     }
-    const raw = await evRes.json();
-    const all = Array.isArray(raw) ? raw : (raw.events || []);
+    const raw = body && body.events;
+    const all = Array.isArray(raw) ? raw : [];
+    if (!all.length) {
+      return res.status(400).json({ message: 'לא התקבלו אירועים מהדפדפן (events.json ריק או לא נטען).' });
+    }
 
     // 4. אירועי 7 הימים הקרובים (כולל היום, שעון ישראל)
     const start = todayKey();
